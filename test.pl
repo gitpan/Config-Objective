@@ -18,7 +18,7 @@
 use Test;
 
 # change 'tests => 1' to 'tests => last_test_to_print';
-BEGIN { plan tests => 8 };
+BEGIN { plan tests => 9 };
 
 # Insert your test code below, the Test module is use()ed here so read
 # its man page ( perldoc Test ) for help writing this test script.
@@ -71,7 +71,9 @@ $conf = Config::Objective->new('test.conf',
 		'hash_ul'	=> Config::Objective::Hash->new(
 						'value_type' => 'HASH'
 					),
-		'table'		=> Config::Objective::Table->new()
+		'table'		=> Config::Objective::Table->new(),
+		'i1'		=> Config::Objective::Integer->new(),
+		'i2'		=> Config::Objective::Integer->new()
 	});
 ok (defined($conf));
 
@@ -204,5 +206,14 @@ ok (ref($table) eq 'ARRAY'
     && $table->[3]->[0] eq 'row'
     && $table->[3]->[1] eq '3'
     && $table->[3]->[2] eq 'baz');
+
+
+###############################################################################
+###  conditional data
+###############################################################################
+
+$i1 = $conf->i1;
+$i2 = $conf->i2;
+ok ($i1 == 1 && $i2 == 2);
 
 

@@ -1,3 +1,10 @@
+Config::Objective 0.8 - 5/26/03
+---------------------
+
+- fixed config grammar bug that broke nested %if blocks
+
+-------------------------------------------------------------------------------
+
 Config::Objective 0.7 - 3/4/03
 ---------------------
 
