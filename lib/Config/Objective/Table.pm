@@ -22,13 +22,132 @@ our @ISA = qw(Config::Objective::List);
 
 
 ###############################################################################
-###  add_before method
+###  utility function
+###############################################################################
+
+sub _find_row
+{
+	my ($self, $query) = @_;
+	my ($ct, $lref, $key);
+
+	ROWS: for ($ct = 0; $ct < @{$self->{value}}; $ct++)
+	{
+		$lref = $self->{value}->[$ct];
+		foreach $key (keys %$query)
+		{
+			next ROWS
+				if ($lref->[$key] !~ m/$query->{$key}/);
+		}
+
+		return $ct;
+	}
+
+	return undef;
+}
+
+
+###############################################################################
+###  insert_row method
+###############################################################################
+
+sub insert_row
+{
+	my ($self, $query, $newrow) = @_;
+	my ($row);
+
+	die "insert_row: row specifier must be a hash\n"
+		if (ref($query) ne 'HASH');
+
+	die "insert_row: new row must be list type\n"
+		if (ref($newrow) ne 'ARRAY');
+
+	$row = $self->_find_row($query);
+	splice(@{$self->{value}}, $row, 0, $newrow)
+		if (defined($row));
+}
+
+
+###############################################################################
+###  find_row method
+###############################################################################
+
+sub find_row
+{
+	my ($self, $query) = @_;
+	my ($row);
+
+	die "find_row: row specifier must be a hash\n"
+		if (ref($query) ne 'HASH');
+
+	$row = $self->_find_row($query);
+	return $self->{value}->[$row]
+		if (defined($row));
+
+	return undef;
+}
+
+
+###############################################################################
+###  replace_row_cells method
+###############################################################################
+
+sub replace_row_cells
+{
+	my ($self, $query, $replspec) = @_;
+	my ($row, $col);
+
+	die "replace_row_cells: row specifier must be a hash\n"
+		if (ref($query) ne 'HASH');
+
+	die "replace_row_cells: replacement specifier must be a hash\n"
+		if (ref($replspec) ne 'HASH');
+
+	$row = $self->_find_row($query);
+	return
+		if (!defined($row));
+
+	foreach $col (keys %$replspec)
+	{
+		$self->{value}->[$row]->[$col] = $replspec->{$col};
+	}
+}
+
+
+###############################################################################
+###  append_to_row_cells method
+###############################################################################
+
+sub append_to_row_cells
+{
+	my ($self, $query, $addspec) = @_;
+	my ($row, $col);
+
+	die "append_to_row_cells: row specifier must be a hash\n"
+		if (ref($query) ne 'HASH');
+
+	die "append_to_row_cells: addition specifier must be a hash\n"
+		if (ref($addspec) ne 'HASH');
+
+	$row = $self->_find_row($query);
+	return
+		if (!defined($row));
+
+	foreach $col (keys %$addspec)
+	{
+		$self->{value}->[$row]->[$col] .= ' '
+			if ($self->{value}->[$row]->[$col] ne '');
+		$self->{value}->[$row]->[$col] .= $addspec->{$col};
+	}
+}
+
+
+###############################################################################
+###  old methods - to be used for backward compatibility only!
 ###############################################################################
 
 sub add_before
 {
 	my ($self, $value) = @_;
-	my ($ct, $lref);
 
 	die "add_before: method requires list argument\n"
 		if (ref($value) ne 'ARRAY');
@@ -37,26 +156,13 @@ sub add_before
 		if (@{$value} != 3
 		    || ref($value->[2]) ne 'ARRAY');
 
-	for ($ct = 0; $ct < @{$self->{'value'}}; $ct++)
-	{
-		$lref = $self->{'value'}->[$ct];
-		if ($lref->[$value->[0]] =~ m/$value->[1]/)
-		{
-			splice(@{$self->{'value'}}, $ct, 0, $value->[2]);
-			return;
-		}
-	}
+	return $self->insert_row({ $value->[0] => $value->[1] }, $value->[2]);
 }
 
-
-###############################################################################
-###  find method
-###############################################################################
 
 sub find
 {
 	my ($self, $value) = @_;
-	my ($row);
 
 	die "find: method requires list argument\n"
 		if (ref($value) ne 'ARRAY');
@@ -64,26 +170,13 @@ sub find
 	die "find: invalid argument(s)\n"
 		if (@{$value} != 2);
 
-	foreach $row (@{$self->{'value'}})
-	{
-		if ($row->[$value->[0]] =~ m/\b$value->[1]\b/)
-		{
-			return $row;
-		}
-	}
-
-	return undef;
+	return $self->find_row({ $value->[0] => "\b$value->[1]\b" });
 }
 
-
-###############################################################################
-###  replace method
-###############################################################################
 
 sub replace
 {
 	my ($self, $value) = @_;
-	my ($row);
 
 	die "replace: method requires list argument\n"
 		if (ref($value) ne 'ARRAY');
@@ -91,25 +184,14 @@ sub replace
 	die "replace: invalid argument(s)\n"
 		if (@{$value} != 4);
 
-	foreach $row (@{$self->{'value'}})
-	{
-		if ($row->[$value->[0]] =~ m/$value->[1]/)
-		{
-			$row->[$value->[2]] = $value->[3];
-			return;
-		}
-	}
+	$self->replace_row_cells({ $value->[0] => $value->[1] },
+				 { $value->[2] => $value->[3] });
 }
 
-
-###############################################################################
-###  modify method
-###############################################################################
 
 sub modify
 {
 	my ($self, $value) = @_;
-	my ($row);
 
 	die "modify: method requires list argument\n"
 		if (ref($value) ne 'ARRAY');
@@ -117,16 +199,8 @@ sub modify
 	die "modify: invalid argument(s)\n"
 		if (@{$value} != 4);
 
-	foreach $row (@{$self->{'value'}})
-	{
-		if ($row->[$value->[0]] =~ m/$value->[1]/)
-		{
-			$row->[$value->[2]] .= ' '
-				if ($row->[$value->[2]] ne '');
-			$row->[$value->[2]] .= $value->[3];
-			return;
-		}
-	}
+	$self->append_to_row_cells({ $value->[0] => $value->[1] },
+				   { $value->[2] => $value->[3] });
 }
 
 
@@ -165,6 +239,54 @@ methods:
 
 =over 4
 
+=item insert_row()
+
+Inserts a new row into the table before a specified row.
+
+The first argument is used to determine the existing row before which
+the new row should be inserted.  It must be a reference to a hash that
+maps column numbers to a regular expression that the column's value must
+match.  If the hash is empty, the new row will be inserted before the
+first existing row.
+
+The second argument is a reference to an array.  It contains the row to
+be inserted.
+
+=item find_row()
+
+Finds a row in the table.  The argument must be a reference to a hash
+that maps column numbers to a regular expression that the column's value
+must match.  If the hash is empty, the first row will be returned.
+
+This function is not very useful for calling from a config file, but
+it's sometimes useful to call it from perl once the config file has been
+read.
+
+=item replace_row_cells()
+
+Replaces one or more cells in a given row.
+
+The first argument is used to determine the row to be modified.  It must
+be a reference to a hash that maps column numbers to a regular expression
+that the column's value must match.  If the hash is empty, the first row
+is used.
+
+The second argument represents the new values for the matching row.  It
+must be a reference to a hash that maps column numbers to the new value
+for that column.
+
+=item append_to_row_cells()
+
+Similar to replace_row_cells(), but appends to the existing value instead
+of replacing it.  A space character is appended before the new value.
+
+=back
+
+In addition, the following deprecated methods are available for backward
+compatibility:
+
+=over 4
+
 =item add_before()
 
 Inserts a new row into the table before a specified row.  The argument
@@ -180,10 +302,6 @@ number is the first argument, and the word to match on is the second.
 It returns a reference to the matching row, or I<undef> if no matches
 were found.
 
-This function is not very useful for calling from a config file, but
-it's sometimes useful to call it from perl once the config file has been
-read.
-
 =item replace()
 
 Finds a row in the same manner as find(), and then replaces that row's
@@ -197,6 +315,9 @@ Similar to replace(), but appends to the existing value instead of
 replacing it.  A space character is appended before the new value.
 
 =back
+
+Note that these deprecated methods should not be used by new applications.
+They will be removed altogether in a future release.
 
 =head1 AUTHOR
 

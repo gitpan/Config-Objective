@@ -83,21 +83,25 @@ sub insert
 		print "\t'$key1' => '$value->{$key1}'\n"
 			if ($self->{'debug'});
 
-		die "hash value missing\n"
-			if (!$self->{'value_optional'}
-			    && !defined($value->{$key1}));
-
-		die "hash value is not a $self->{'value_type'}\n"
-			if (defined($self->{'value_type'})
-			    && $self->{'value_type'} ne ref($value->{$key1}));
-
-		die "value must be an absolute path\n"
-			if ($self->{'value_abspath'}
-			    && $value->{$key1} !~ m|^/|);
-
 		die "key must be an absolute path\n"
 			if ($self->{'key_abspath'}
 			    && $key1 !~ m|^/|);
+
+		if (!defined($value->{$key1}))
+		{
+			die "hash value missing\n"
+				if (!$self->{'value_optional'});
+		}
+		else
+		{
+			die "hash value is not a $self->{'value_type'}\n"
+				if (defined($self->{'value_type'})
+				    && $self->{'value_type'} ne ref($value->{$key1}));
+
+			die "value must be an absolute path\n"
+				if ($self->{'value_abspath'}
+				    && $value->{$key1} !~ m|^/|);
+		}
 
 		if (exists($self->{'value'}->{$key1}))
 		{
@@ -132,6 +136,32 @@ sub insert
 }
 
 
+###############################################################################
+###  exists method
+###############################################################################
+ 
+sub exists
+{
+	my ($self, $value) = @_;
+ 
+	return (exists($self->{'value'}->{$value}) ? 1 : 0);
+}
+
+ 
+###############################################################################
+###  find method
+###############################################################################
+ 
+sub find
+{
+	my ($self, $value) = @_;
+ 
+	return (exists($self->{value}->{$value})
+		? $self->{value}->{$value}
+		: undef);
+}
+
+ 
 ###############################################################################
 ###  delete method
 ###############################################################################
@@ -230,6 +260,15 @@ Sets the object's value to an empty hash.
 Deletes a specific hash key.  The argument can be a scalar or a
 reference to a list, in which case all of the keys in the list are
 deleted.
+
+=item exists()
+
+Returns true if the argument is found in the hash, false otherwise.
+
+=item find()
+
+If the argument is found in the hash, returns its value.  Otherwise,
+returns false.
 
 =back
 

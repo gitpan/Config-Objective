@@ -1,3 +1,16 @@
+Config::Objective 0.9 - 7/23/03
+---------------------
+
+- changed parser to allow multiple arguments to a method call
+- added new methods to Config::Objective::Table to use multiple args:
+  insert_row(), find_row(), replace_row_cells(), and append_to_row_cells()
+- added prepend() and gsub() methods to Config::Objective::String class
+- added find() and exists() methods to Config::Objective::Hash class
+- fixed Config::Objective::Hash->insert() to allow value_optional to trump
+  value_type and value_abspath
+
+-------------------------------------------------------------------------------
+
 Config::Objective 0.8 - 5/26/03
 ---------------------
 

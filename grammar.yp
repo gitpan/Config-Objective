@@ -220,9 +220,24 @@ method_name
 method_args
 	: #empty
 	{
-		return undef;
+		my ($config) = $_[0]->YYData->{'config'};
+		push(@{$config->{arg_stack}}, []);
 	}
 	| value
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+		push(@{$config->{arg_stack}}, [ $_[1] ]);
+	}
+	| PAREN_START
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+		push(@{$config->{'list_stack'}}, []);
+	}
+	list_values PAREN_END
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+		push(@{$config->{arg_stack}}, pop(@{$config->{'list_stack'}}));
+	}
 	;
 
 method_call
@@ -245,7 +260,8 @@ method_call
 			    && @{$config->{'cond_stack'}}
 			    && $config->{'cond_stack'}->[-1] != CS_TRUE);
 
-		return $config->_call_obj_method($_[1], $_[2], $_[3]);
+		return $config->_call_obj_method($_[1], $_[2],
+					@{pop(@{$config->{arg_stack}})});
 	}
 	;
 

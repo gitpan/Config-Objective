@@ -22,33 +22,33 @@ our @ISA = qw(Config::Objective::DataType);
 
 
 ###############################################################################
-###  equals method (for conditional expressions)
+###  equals() method (for conditional expressions)
 ###############################################################################
 
 sub equals
 {
 	my ($self, $value) = @_;
 
-#	print "==> equals(" . ref($self) . "='$self->{'value'}', '$value')\n";
+#	print "==> equals(" . ref($self) . "='$self->{value}', '$value')\n";
 
-	return ($self->{'value'} eq $value);
+	return ($self->{value} eq $value);
 }
 
 
 ###############################################################################
-###  match method (for conditional expressions)
+###  match() method (for conditional expressions)
 ###############################################################################
 
 sub match
 {
 	my ($self, $regex) = @_;
 
-	return ($self->{'value'} =~ m/$regex/i);
+	return ($self->{value} =~ m/$regex/i);
 }
 
 
 ###############################################################################
-###  set method
+###  set() method
 ###############################################################################
 
 sub set
@@ -63,13 +63,13 @@ sub set
 			if (ref($value));
 
 		die "value must be absolute path\n"
-			if ($self->{'value_abspath'}
+			if ($self->{value_abspath}
 			    && $value !~ m|^/|);
 	}
 	else
 	{
 		die "value required\n"
-			if (! $self->{'value_optional'});
+			if (! $self->{value_optional});
 		$value = '';
 	}
 
@@ -78,7 +78,7 @@ sub set
 
 
 ###############################################################################
-###  append method - append new string to existing value
+###  append() method - append new string to existing value
 ###############################################################################
 
 sub append
@@ -88,7 +88,40 @@ sub append
 	die "non-scalar value specified for string variable\n"
 		if (defined($value) && ref($value));
 
-	$self->{'value'} .= $value;
+	$self->{value} .= $value;
+
+	return 1;
+}
+
+
+###############################################################################
+###  prepend() method - prepend new string to existing value
+###############################################################################
+
+sub prepend
+{
+	my ($self, $value) = @_;
+
+	die "non-scalar value specified for string variable\n"
+		if (defined($value) && ref($value));
+
+	$self->{value} = $value . $self->{value};
+
+	return 1;
+}
+
+
+###############################################################################
+###  gsub() method - substring replacement
+###############################################################################
+
+sub gsub
+{
+	my ($self, $old, $new) = @_;
+
+#	print "==> gsub(): value='$self->{value}' old='$old' new='$new'\n";
+
+	$self->{value} =~ s/$old/$new/g;
 
 	return 1;
 }
@@ -142,6 +175,15 @@ instead.
 =item append()
 
 Appends its argument to the object's value using string concatenation.
+
+=item prepend()
+
+Prepends its argument to the object's value using string concatenation.
+
+=item gsub()
+
+For each substring matching the first argument in the object's value,
+substitutes the second argument.
 
 =item equals()
 

@@ -48,6 +48,7 @@ $conf = Config::Objective->new('test.conf',
 		'quoted_string'	=> Config::Objective::String->new(),
 		'special_str'	=> Config::Objective::String->new(),
 		'empty_string'	=> Config::Objective::String->new(),
+		'gsub_string'	=> Config::Objective::String->new(),
 		'no_value'	=> Config::Objective::String->new(
 						'value_optional' => 1
 					),
@@ -89,6 +90,7 @@ ok ($conf->string eq '3value'
     && $conf->quoted_string eq "quoted\n\tstring\non\n\t\tmultiple\n\tlines\n\n"
     && $conf->special_str eq 'quoted with "special" characters'
     && $conf->empty_string eq ''
+    && $conf->gsub_string eq 'foo WHEE baz WHEE quux'
     && $conf->no_value eq ''
     && $conf->path eq '/usr/local/bin');
 

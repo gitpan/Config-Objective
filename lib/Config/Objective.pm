@@ -25,7 +25,7 @@ use Config::Objective::DataType;
 use Config::Objective::Parser;
 
 
-our $VERSION = '0.8';
+our $VERSION = '0.9';
 our $AUTOLOAD;
 
 
@@ -364,12 +364,78 @@ are the result of calling the get() method on the corresponding object.
 The config file format supported by B<Config::Objective> is described
 here.
 
+=head2 Data Types
+
+B<Config::Objective> supports three types of data: scalars, lists, and
+hashes.  The syntax for these types is intentionally similar to their
+perl equivalents.
+
+=over 4
+
+=item Scalars
+
+A scalar is represented as a simple integer or string value.  If it is
+composed only of letters, numbers, and the underscore character, it can
+be written literally:
+
+  foo
+  all_word_characters
+  123
+  alpha_123_numeric
+  4sure
+
+However, if the value contains whitespace or other non-word characters,
+it must be quoted:
+
+  "telnet/tcp"
+  "use quotes for whitespace"
+  "quotes can be escaped like this \" inside quoted strings"
+  "quoted
+     strings
+   can span
+   multiple lines"
+
+=item Lists
+
+A list is represented as a sequence of comma-delimited values enclosed
+by square brackets:
+
+  [ this, is, a, list ]
+
+Note that each value in a list can itself be a scalar, list, or hash:
+
+  [ this, is, a, [ nested, list ] ]
+  [ this, list, contains, a, { hash => value } ]
+
+=item Hashes
+
+A hash is represented as a sequence of zero or more comma-delimited
+entries enclosed in curly braces:
+
+  { this => 1, is => 2, a => 3, hash => 4 }
+
+As in perl, each entry contains a key and a value.  However, unlike perl,
+the value is optional:
+
+  { this, is, a, hash, without, values }
+  { this => hash, has => "some values", but, not, others }
+
+When no value is specified for a given entry, its value is undefined.
+
+Note that hash keys must always be scalars.  However, values may be
+scalars, lists, or hashes:
+
+  { "this is a" => [ list, within, a, hash ] }
+  { "this is a" => { sub => hash } }
+
+=back
+
 =head2 Configuration Statements
 
 Each statement in the config file results in calling a method on a
 configuration object.  The syntax is:
 
-  object[->method] [arg];
+  object[->method] [args];
 
 In this syntax, "object" is the name of the object.  The object must
 be created and passed to the B<Config::Objective> constructor, as
@@ -379,28 +445,35 @@ The "->method" portion is optional.  If specified, it indicates which
 method should be called on the object.  If not specified, a method called
 default() will be used.
 
-The "arg" portion is also optional.  It specifies an argument to pass to
-the method.  It can be a simple scalar, list, hash, or a complex, nested
-list or hash structure.  For example:
-
-  all_word_characters
-  "use quotes for non-word characters"
-  "quotes can be escaped like this \" inside quoted strings"
-  [ this, is, a, list ]
-  { this => 1, is => 2, a => 3, hash => 4 }
-  { hash, values => are, optional }
-  [ this, is, a, [ nested, list ] ]
-  [ this, is, a, { hash, within, a, list } ]
-  { "this is a" => [ list, within, a, hash ] }
+The "args" portion is also optional.  It specifies one or more
+comma-delimited arguments to pass to the method.  If multiple arguments
+are provided, the entire argument list must be enclosed in parentheses.
+Each argument can be a simple scalar, list, hash, or a complex, nested
+list or hash structure, as described above.
 
 So, putting this all together, here are some example configuration
 statements:
 
-  object_default_method_no_args;
-  object_no_args->some_method;
-  object_default_method scalar_arg;
-  object [ list, for, args ];
-  object_method_and_args->another_method { hash, for, args };
+  ### call default method with no arguments
+  object;
+
+  ### call a specific method, but still no args
+  object->method;
+
+  ### call default method, but specify a single scalar argument
+  object scalar_arg;
+
+  ### call default method, but specify a single list argument
+  object [ this, is, a, single, list, argument ];
+
+  ### call a specific method and specify a single hash argument
+  object->method { this, is, a, single, hash, argument };
+
+  ### call a specific method with multiple scalar args
+  object->method(arg1, arg2, arg3);
+
+  ### call a specific method with multiple args of different types
+  object->method(scalar_arg, [ list, argument ], { hash => argument });
 
 =head2 Conditional Evaluation
 
@@ -424,7 +497,7 @@ The most basic I<expression> is simply a method call that returns
 a true or false value.  The syntax for this is the same as a normal
 config statement, except without the trailing semicolon:
 
-  %if ( object[->method] [arg] )
+  %if ( object[->method] [args] )
 
 If no method is specified, the equals() method will be called by
 default.
