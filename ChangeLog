@@ -1,3 +1,16 @@
+Config::Objective 0.6 - 1/30/03
+---------------------
+
+- updated README file
+- minor documentation cleanups
+- added boolean '!' operator to expression syntax
+- cleaned up config grammar
+- require parens around conditional expressions
+- improved error reporting
+- split Config::Objective::DataType into multiple modules w/full documentation
+
+-------------------------------------------------------------------------------
+
 Config::Objective 0.5 - 1/18/03
 ---------------------
 

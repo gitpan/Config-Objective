@@ -25,7 +25,7 @@ use Config::Objective::DataType;
 use Config::Objective::Parser;
 
 
-our $VERSION = '0.5';
+our $VERSION = '0.6';
 our $AUTOLOAD;
 
 
@@ -80,6 +80,11 @@ sub _call_obj_method
 	my ($self, $obj, $method, @args) = @_;
 	my ($retval, $line, $msg);
 
+#	print "==> _call_obj_method('$obj', '$method'";
+#	map { print ", '$_'"; } @args
+#		if (@args > 1 || defined($args[0]));
+#	print ")\n";
+
 	die "$obj: unknown config object"
 		if (!exists($self->{'objs'}->{$obj}));
 
@@ -98,6 +103,8 @@ sub _call_obj_method
 		die "$msg: $@";
 	}
 
+#	print "<== _call_obj_method(): returning '"
+#		. (defined($retval) ? $retval : 'undef') . "'\n";
 	return $retval;
 }
 
@@ -125,6 +132,8 @@ sub new
 	$self->{'cond_stack'} = [];
 	$self->{'list_stack'} = [];
 	$self->{'hash_stack'} = [];
+
+	$self->{'in_expr'} = 0;
 
 	$self->parse($file);
 
@@ -155,8 +164,8 @@ sub parse
 		'ELSE',		'^\%[ \t]*else',
 		'ENDIF',	'^\%[ \t]*endif',
 		'EOS',		';',
-		'EXPR_START',	'\(',
-		'EXPR_END',	'\)',
+		'PAREN_START',	'\(',
+		'PAREN_END',	'\)',
 		'HASH_ARROW',	'=>',
 		'HASH_START',	'{',
 		'HASH_END',	'}',
@@ -165,6 +174,7 @@ sub parse
 		'LIST_START',	'\[',
 		'LIST_END',	'\]',
 		'METHOD_ARROW',	'->',
+		'NOT',		'!',
 		'OR',		'\|\|',
 		'WORD',		'\w+',
 		'QSTRING',	[ '"', '[^"]*', '"' ],
@@ -178,7 +188,7 @@ sub parse
 				},
 		'ERROR',	'(?s:.*)',
 				sub {
-					my $line = $_[0]->line;
+					my $line = $_[0]->lexer->line;
 
 					die "line $line: syntax error: \"$_[1]\"\n";
 				}
@@ -283,10 +293,12 @@ Config::Objective - Perl module for parsing object-oriented config files
 =head1 SYNOPSIS
 
   use Config::Objective;
+  use Config::Objective::String;
+  use Config::Objective::List;
 
   my $conf = Config::Objective->new('filename',
   		{
-			'var1' => Config::Objective::Scalar->new(),
+			'var1' => Config::Objective::String->new(),
 			'var2' => Config::Objective::List->new(),
 			...
 		},
@@ -396,23 +408,24 @@ They can be used to enclose other config statements, which are evaluated
 or skipped based on whether the conditional expression evaluates to true.
 For example:
 
-  %if expression
+  %if ( expression )
     ... other config directives ...
   %endif
 
 The most basic I<expression> is simply a method call that returns
 a true or false value.  The syntax for this is the same as a normal
-config statement, except without the trailing semicolon.  For example:
+config statement, except without the trailing semicolon:
 
-  %if object[->method] [arg]
+  %if ( object[->method] [arg] )
 
 If no method is specified, the equals() method will be called by
 default.
 
-Multiple expressions can be combined using the "&&" and "||" operators.
-Parentheses can also be used for grouping.  For example:
+Multiple expressions can be combined using the "&&", "||", and
+"!" operators.  Additional parentheses can also be used for grouping
+within the expression.  For example:
 
-  %if ( object1 foo && object2 bar ) || object3 baz
+  %if ( ( object1 foo && ! object2 bar ) || object3 baz )
 
 =head2 File Inclusion
 
@@ -427,11 +440,11 @@ If the specified filename is not an absolute path, B<Config::Objective>
 will look for it in the directory specified by the I<include_dir>
 attribute when the B<Config::Objective> object was created.
 
-Note that the "%include" directive will be ignored within an "%if" block
-whose condition is false.  This means that you cannot start an "%if"
-block in one file, add a "%include" directive, and provide the "%endif"
-directive in the included file.  All "%if" blocks must be fully
-contained within the same file.
+Note that the I<%include> directive will be ignored within an I<%if>
+block whose condition is false.  This means that you cannot start an
+I<%if> block in one file, add a I<%include> directive, and provide the
+I<%endif> directive in the included file.  All I<%if> blocks must be
+fully contained within the same file.
 
 =head2 Comments
 
@@ -480,211 +493,25 @@ Evaluation"> above.)
 =head2 Supplied Object Classes
 
 B<Config::Objective> supplies several classes that can be used for
-encapsulating common configuration data.
+encapsulating common types of configuration data.
 
 =over 4
-
-=item B<Config::Objective::DataType>
-
-This is the base class for the rest of the supplied config object classes.
-It should not be used directly, but does support the following methods
-for use in subclasses:
-
-=over 4
-
-=item new()
-
-The constructor.  It can be passed a hash to set the object's
-attributes.  The object will be created as a reference to this hash.
-
-=item get()
-
-Returns the value encapsulated by the object.
-
-=item set()
-
-Sets the value encapsulated by the object to its argument.
-
-=item default()
-
-Calls the set() method.
-
-=item equals()
-
-Returns true if the argument equals the object's value (as determined by
-the I<eq> operator; see the L<perlop> man page for details).
-
-=item unset()
-
-Sets the object's value to I<undef>.
-
-=back
-
-=item B<Config::Objective::Scalar>
-
-This object encapsulates a scalar value.  It supports the following
-methods:
-
-=over 4
-
-=item set()
-
-Sets the object's value to its argument.  The value must be a scalar.
-
-If the object was created with the I<value_abspath> attribute enabled,
-the value must be an absolute path string.
-
-If the object was created with the I<value_optional> attribute enabled,
-the argument is optional; if missing, an empty string will be used
-instead.
-
-=item append()
-
-Appends its argument to the object's value using string concatenation.
-
-=back
 
 =item B<Config::Objective::Boolean>
 
-This object encapsulates a boolean value.  It supports the following
-methods:
+=item B<Config::Objective::Hash>
 
-=over 4
-
-=item set()
-
-Sets the object's value to its argument.  The value must be one of the
-following: "yes", "no", "on", "off", "true", "false", 1, or 0.
-
-=back
+=item B<Config::Objective::Integer>
 
 =item B<Config::Objective::List>
 
-This object encapsulates a list value.  It supports the following
-methods:
-
-=over 4
-
-=item unset()
-
-Sets the object's value to a reference to an empty list.
-
-=item set()
-
-Sets the object's value to its argument, which must be a reference to
-a list.
-
-=item add()
-
-Appends its argument to the list.  The argument can be a scalar or a
-reference to a list, in which case the referenced list's content is
-added to the object's list.
-
-=item default()
-
-Calls the add() method.
-
-=item add_top()
-
-Same as add(), but adds to the front of the list instead of the end.
-
-=item delete()
-
-Deletes elements from the list that match its argument.  Matching is
-performed by using the argument as a regular expression.  The argument
-can be a scalar or a reference to a list, in which case each item of the
-referenced list is used to check the values in the object's list.
-
-=back
+=item B<Config::Objective::String>
 
 =item B<Config::Objective::Table>
 
-This object encapsulates a table, which is represented as a list of lists.
-Both rows and columns are indexed starting at 0.  It is derived from
-the B<Config::Objective::List> class, but it supports the following
-additional methods:
-
-=over 4
-
-=item add_before()
-
-Inserts a new row into the table before a specified row.  The argument
-must be a reference to a list containing three elements: a number
-indicating what column to search on, a string which is used as a regular
-expression match to find a matching row in the table, and a reference
-to the new list to be inserted before the matching row.
-
-=item find()
-
-Finds a row with a specified word in a specified column.  The column
-number is the first argument, and the word to match on is the second.
-It returns a reference to the matching row, or I<undef> if no matches
-were found.
-
-This function is not very useful for calling from a config file, but
-it's sometimes useful to call it from perl once the config file has been
-read.
-
-=item replace()
-
-Finds a row in the same manner as find(), and then replaces that row's
-value in a specified column with a new value.  The arguments are the
-column number to search on, the word to search for, the column number to
-replace, and the text to replace it with.
-
-=item modify()
-
-Similar to replace(), but appends to the existing value instead of
-replacing it.  A space character is appended before the new value.
-
 =back
 
-=item B<Config::Objective::Hash>
-
-This object encapsulates a hash.  It supports the following methods:
-
-=over 4
-
-=item insert()
-
-Inserts the specified values into the object's hash.  The argument must
-be a reference to a hash, whose keys and values are copied into the
-object's hash.
-
-If the object was created with the I<value_optional> attribute enabled,
-keys may be inserted with no defined values.
-
-If the object was created with the I<value_type> attribute set to
-either "ARRAY" or "HASH", then the hash values must be references to
-the corresponding structure type.  If the values are lists, inserting a
-new list with the same key will append the new list to the existing list.
-If the values are hashes, inserting a new hash with the same key will
-insert the new key/value pairs into the existing value hash.
-
-If the object was created with the I<value_abspath> attribute enabled,
-the hash values must be absolute path strings.
-
-If the object was created with the I<key_abspath> attribute enabled, the
-hash keys must be absolute path strings.
-
-=item set()
-
-The same as insert(), except that the existing hash is emptied before
-inserting the new data.
-
-=item unset()
-
-Sets the object's value to an empty hash.
-
-=item delete()
-
-Deletes a specific hash key.  The argument can be a scalar or a
-reference to a list, in which case all of the keys in the list are
-deleted.
-
-=back
-
-=back
+See the documentation for each of these classes for more information.
 
 =head1 AUTHOR
 

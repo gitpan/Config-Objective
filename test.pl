@@ -18,57 +18,59 @@
 use Test;
 
 # change 'tests => 1' to 'tests => last_test_to_print';
-BEGIN { plan tests => 5 };
+BEGIN { plan tests => 8 };
 
 # Insert your test code below, the Test module is use()ed here so read
 # its man page ( perldoc Test ) for help writing this test script.
 
 
 ###############################################################################
-###  Test 1: Module Initialization
+###  Module Initialization
 ###############################################################################
 
 use Config::Objective;
+use Config::Objective::String;
+use Config::Objective::Boolean;
+use Config::Objective::List;
+use Config::Objective::Hash;
+use Config::Objective::Integer;
+use Config::Objective::Table;
 ok(1);
 
 
 ###############################################################################
-###  Test 2: Config Parsing
+###  Config Parsing
 ###############################################################################
 
 $conf = Config::Objective->new('test.conf',
 	{
-		'null'		=> Config::Objective::Scalar->new(),
-		'scalar'	=> Config::Objective::Scalar->new(),
-		'scalar2'	=> Config::Objective::Scalar->new(),
-		'qstring'	=> Config::Objective::Scalar->new(),
-		'no_value'	=> Config::Objective::Scalar->new(
+		'string'	=> Config::Objective::String->new(),
+		'quoted_string'	=> Config::Objective::String->new(),
+		'empty_string'	=> Config::Objective::String->new(),
+		'no_value'	=> Config::Objective::String->new(
 						'value_optional' => 1
 					),
+		'path'		=> Config::Objective::String->new(
+						'value_abspath' => 1
+					),
+		'integer'	=> Config::Objective::Integer->new(),
 		'boolean'	=> Config::Objective::Boolean->new(),
-		'empty_list'	=> Config::Objective::List->new(),
+		'bool_no_arg'	=> Config::Objective::Boolean->new(),
 		'list'		=> Config::Objective::List->new(),
-		'one_list'	=> Config::Objective::List->new(),
-		'empty_hash'	=> Config::Objective::Hash->new(),
+		'build_list'	=> Config::Objective::List->new(),
+		'complex_list'	=> Config::Objective::List->new(),
 		'hash'		=> Config::Objective::Hash->new(),
-		'hash2'		=> Config::Objective::Hash->new(),
-		'key_only'	=> Config::Objective::Hash->new(
+		'empty_hash'	=> Config::Objective::Hash->new(),
+		'hash_opt_vals'	=> Config::Objective::Hash->new(
 						'value_optional' => 1
 					),
-		'complex'	=> Config::Objective::List->new(),
 		'hash_ol'	=> Config::Objective::Hash->new(
 						'value_type' => 'ARRAY'
 					),
 		'hash_ul'	=> Config::Objective::Hash->new(
 						'value_type' => 'HASH'
 					),
-		'sudo'		=> Config::Objective::Hash->new(
-						'value_type' => 'HASH'
-					),
-		'var'		=> Config::Objective::List->new(),
-		'keys_only'	=> Config::Objective::Hash->new(
-						'value_optional' => 1
-					)
+		'table'		=> Config::Objective::Table->new()
 	});
 ok (defined($conf));
 
@@ -77,34 +79,128 @@ ok (defined($conf));
 
 
 ###############################################################################
-###  Test 3: Data Retrieval
+###  string data
 ###############################################################################
 
-$href = $conf->hash;
-ok ($href->{'key'} eq 'value'
-    && keys(%$href) == 1);
+ok ($conf->string eq '3value'
+    && $conf->quoted_string eq "quoted\n\tstring\non\n\t\tmultiple\n\tlines\n\n"
+    && $conf->empty_string eq ''
+    && $conf->no_value eq ''
+    && $conf->path eq '/usr/local/bin');
 
 
 ###############################################################################
-###  Test 4: Specific Data Type Tests
+###  integer data
 ###############################################################################
 
+ok ($conf->integer == 8);
+
+
+###############################################################################
+###  boolean data
+###############################################################################
+
+ok (! $conf->boolean && $conf->bool_no_arg);
+
+
+###############################################################################
+###  list data
+###############################################################################
+
+$list = $conf->list;
+$build_list = $conf->build_list;
+$complex_list = $conf->complex_list;
+ok (ref($list) eq 'ARRAY'
+    && @$list == 3
+    && $list->[0] eq 'this'
+    && $list->[1] eq 'is'
+    && $list->[2] eq 'cool'
+    && ref($build_list) eq 'ARRAY'
+    && @$build_list == 4
+    && $build_list->[0] eq 'foo'
+    && $build_list->[1] eq 'bar'
+    && $build_list->[2] eq 'baz'
+    && $build_list->[3] eq 'quux'
+    && ref($complex_list) eq 'ARRAY'
+    && ref($complex_list->[3]) eq 'ARRAY'
+    && $complex_list->[3]->[0] eq 'random'
+    && $complex_list->[3]->[1] eq 'sublist'
+    && ref($complex_list->[4]) eq 'HASH'
+    && scalar(keys %{$complex_list->[4]}) == 1
+    && $complex_list->[4]->{'sub'} eq 'hash');
+
+
+###############################################################################
+###  hash data
+###############################################################################
+
+$hash = $conf->hash;
+$hash_opt_vals = $conf->hash_opt_vals;
+$empty_hash = $conf->empty_hash;
+$hash_ol = $conf->hash_ol;
 $hash_ul = $conf->hash_ul;
-ok (ref($hash_ul->{'ul1'}) eq 'HASH'
-    && exists($hash_ul->{'ul1'}->{'item1'})
-    && exists($hash_ul->{'ul1'}->{'item2'})
-    && exists($hash_ul->{'ul1'}->{'item3'})
-    && exists($hash_ul->{'ul1'}->{'foo'})
-    && exists($hash_ul->{'ul1'}->{'bar'})
-    && exists($hash_ul->{'ul1'}->{'baz'}));
+ok (ref($hash) eq 'HASH'
+    && scalar(keys %$hash) == 4
+    && exists($hash->{'bar'})
+    && exists($hash->{'baz'})
+    && exists($hash->{'list'})
+    && ref($hash->{'list'}) eq 'ARRAY'
+    && @{$hash->{'list'}} == 7
+    && exists($hash->{'hash'})
+    && ref($hash->{'hash'}) eq 'HASH'
+    && scalar(keys %{$hash->{'hash'}}) == 2
+    && ref($hash_opt_vals) eq 'HASH'
+    && scalar(keys %$hash_opt_vals) == 4
+    && exists($hash_opt_vals->{'larry'})
+    && !defined($hash_opt_vals->{'larry'})
+    && exists($hash_opt_vals->{'moe'})
+    && !defined($hash_opt_vals->{'moe'})
+    && exists($hash_opt_vals->{'curly'})
+    && !defined($hash_opt_vals->{'curly'})
+    && exists($hash_opt_vals->{'key'})
+    && $hash_opt_vals->{'key'} eq 'with_val_in_same_hash'
+    && ref($empty_hash) eq 'HASH'
+    && scalar(keys %$empty_hash) == 0
+    && ref($hash_ol) eq 'HASH'
+    && scalar(keys %$hash_ol) == 2
+    && ref($hash_ol->{'key1'}) eq 'ARRAY'
+    && @{$hash_ol->{'key1'}} == 5
+    && ref($hash_ol->{'key2'}) eq 'ARRAY'
+    && @{$hash_ol->{'key2'}} == 3
+    && ref($hash_ul) eq 'HASH'
+    && scalar(keys %$hash_ul) == 2
+    && ref($hash_ul->{'key1'}) eq 'HASH'
+    && scalar(keys %{$hash_ul->{'key1'}}) == 2
+    && ref($hash_ul->{'key2'}) eq 'HASH'
+    && scalar(keys %{$hash_ul->{'key2'}}) == 3);
 
 
 ###############################################################################
-###  Test 5: Conditional Evaluation Tests
+###  table data
 ###############################################################################
 
-$key_only = $conf->key_only;
-ok (ref($key_only) eq 'HASH'
-    && scalar(keys %$key_only) == 1
-    && exists($key_only->{'key'}));
+$table = $conf->table;
+ok (ref($table) eq 'ARRAY'
+    && @$table == 4
+    && ref($table->[0]) eq 'ARRAY'
+    && @{$table->[0]} == 3
+    && $table->[0]->[0] eq 'row'
+    && $table->[0]->[1] eq '1'
+    && $table->[0]->[2] eq 'foo'
+    && ref($table->[1]) eq 'ARRAY'
+    && @{$table->[1]} == 3
+    && $table->[1]->[0] eq 'row'
+    && $table->[1]->[1] eq '1.5'
+    && $table->[1]->[2] eq 'quux'
+    && ref($table->[2]) eq 'ARRAY'
+    && @{$table->[2]} == 3
+    && $table->[2]->[0] eq 'UNrow again'
+    && $table->[2]->[1] eq '2'
+    && $table->[2]->[2] eq 'bar'
+    && ref($table->[3]) eq 'ARRAY'
+    && @{$table->[3]} == 3
+    && $table->[3]->[0] eq 'row'
+    && $table->[3]->[1] eq '3'
+    && $table->[3]->[2] eq 'baz');
+
 

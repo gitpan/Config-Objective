@@ -4,7 +4,7 @@
 ###  Copyright 2002-2003 Mark D. Roth
 ###  All rights reserved. 
 ###
-###  Config::Objective::DataType - data types for Config::Objective
+###  Config::Objective::DataType - base class for Config::Objective data types
 ###
 ###  Mark D. Roth <roth@uiuc.edu>
 ###  Campus Information Technologies and Educational Services
@@ -12,16 +12,14 @@
 ###
 
 
-###############################################################################
-###  base class for data types
-###############################################################################
-
 package Config::Objective::DataType;
 
 use strict;
 
-our $AUTOLOAD;
 
+###############################################################################
+###  constructor
+###############################################################################
 
 sub new
 {
@@ -29,10 +27,6 @@ sub new
 	my ($self);
 
 	$self = \%opts;
-
-	$self->{'default_method'} = 'set'
-		if (!exists($self->{'default_method'}));
-
 	bless($self, $class);
 
 	$self->unset();
@@ -40,6 +34,10 @@ sub new
 	return $self;
 }
 
+
+###############################################################################
+###  get method
+###############################################################################
 
 sub get
 {
@@ -50,6 +48,10 @@ sub get
 	return $self->{'value'};
 }
 
+
+###############################################################################
+###  set method
+###############################################################################
 
 sub set
 {
@@ -62,15 +64,21 @@ sub set
 }
 
 
-sub equals
+###############################################################################
+###  default method
+###############################################################################
+
+sub default
 {
 	my ($self, $value) = @_;
 
-#	print "==> equals(" . ref($self) . ", '$value')\n";
-
-	return ($self->{'value'} eq $value);
+	$self->set($value);
 }
 
+
+###############################################################################
+###  unset method
+###############################################################################
 
 sub unset
 {
@@ -81,33 +89,9 @@ sub unset
 }
 
 
-sub AUTOLOAD
-{
-	my ($self, @args) = @_;
-	my ($method);
-
-#	print "==> AUTOLOAD(" . ref($self) . "): ";
-
-	$method = $AUTOLOAD;
-	$method =~ s/.*:://;
-
-#	print "$method(\"" . join('", "', @args) . "\")\n";
-
-	return 
-		if ($method eq 'DESTROY');
-
-	$method = $self->{'default_method'}
-		if ($method eq 'default');
-
-#	print "can($method)\n"
-#		if ($self->can($method));
-
-	die "unknown method '$method'\n"
-		if (! $self->can($method));
-
-	return $self->$method(@args);
-}
-
+###############################################################################
+###  utility function for parsing arguments
+###############################################################################
 
 sub _scalar_or_list
 {
@@ -123,450 +107,79 @@ sub _scalar_or_list
 }
 
 
-1;
-
-
 ###############################################################################
-###  scalar data type
+###  cleanup and documentation
 ###############################################################################
-
-package Config::Objective::Scalar;
-
-use strict;
-
-#use overload
-#	'""'		=> 'get',
-##	'0+'		=> 'get',
-#	'+'		=> 'numeric_add',
-#	'='		=> 'set',
-#	'eq'		=> 'equals',
-##	'fallback'	=> 1
-#	;
-
-our @ISA = qw(Config::Objective::DataType);
-
-
-sub set
-{
-	my ($self, $value) = @_;
-
-#	print "==> Scalar::set($value)\n";
-
-	if (defined($value))
-	{
-		die "non-scalar value specified for scalar variable\n"
-			if (ref($value));
-
-		die "value must be absolute path\n"
-			if ($self->{'value_abspath'}
-			    && $value !~ m|^/|);
-	}
-	else
-	{
-		die "value required\n"
-			if (! $self->{'value_optional'});
-		$value = '';
-	}
-
-	return $self->SUPER::set($value);
-}
-
-
-sub append
-{
-	my ($self, $value) = @_;
-
-	die "non-scalar value specified for scalar variable\n"
-		if (defined($value) && ref($value));
-
-	$self->{'value'} .= $value;
-
-	return 1;
-}
-
-
-#sub numeric_add
-#{
-#	my ($self, $arg, $reversed) = @_;
-#
-##	print "==> numeric_add(" . ref($self) . ", '$arg', "
-##	      . (defined($reversed)
-##		 ? ($reversed
-##		    ? 'TRUE'
-##		    : 'FALSE')
-##		 : 'undef') . ")\n";
-#
-#	return $arg + $self->{'value'};
-##	return ($reversed
-##		? $arg + $self->{'value'}
-##		: $arg);
-#}
-
 
 1;
 
+__END__
 
-###############################################################################
-###  boolean data type
-###############################################################################
+=head1 NAME
 
-package Config::Objective::Boolean;
+Config::Objective::DataType - base class for Config::Objective data types
 
-use strict;
+=head1 SYNOPSIS
 
-#use overload
-#	'bool'	=> \&get
-#	;
+  use Config::Objective;
+  use Config::Objective::DataType;
 
-our @ISA = qw(Config::Objective::DataType);
+  my $conf = Config::Objective->new('filename', {
+		'objname'	=> Config::Objective::DataType->new(
+					'attr1' => 0,
+					'attr2' => "string",
+					...
+				)
+	});
 
+=head1 DESCRIPTION
 
-sub set
-{
-	my ($self, $value) = @_;
+The B<Config::Objective::DataType> module provides a class that
+encapsulates a value in an object so that it can be used with
+B<Config::Objective>.  Its methods can be used to manipulate the
+encapsulated value from the config file.
 
-#	print "==> Boolean::set($value)\n";
+The B<Config::Objective::DataType> class is not intended to be used
+to directly instantiate configuration objects, but it does
+support the following methods for use in subclasses:
 
-	if (!defined($value)
-	    || $value =~ m/^(yes|on|true|1)$/i)
-	{
-		$value = 1;
-	}
-	elsif ($value =~ m/^(no|off|false|0)$/i)
-	{
-		$value = 0;
-	}
-	else
-	{
-		die "non-boolean value '$value' specified for boolean variable\n";
-	}
+=over 4
 
-	return $self->SUPER::set($value);
-}
+=item new()
 
+The constructor.  It can be passed a hash to set the object's
+attributes.  The object will be created as a reference to this hash.
 
-1;
+The B<Config::Objective::DataType> class itself does not use the
+attributes in any way.  However, they can be useful in subclasses.
 
+=item set()
 
-###############################################################################
-###  list data type
-###############################################################################
+Sets the object's value to the supplied value.
 
-package Config::Objective::List;
+=item get()
 
-use strict;
+Returns the object's value.
 
-our @ISA = qw(Config::Objective::DataType);
+=item unset()
 
+Sets the object's value to I<undef>.
 
-sub new
-{
-	my ($class, %opts) = @_;
-	my ($self);
+=item default()
 
-	$opts{'default_method'} = 'add'
-		if (!exists($opts{'default_method'}));
+Calls the set() method.
 
-	return Config::Objective::DataType::new($class, %opts);
-}
+=back
 
+=head1 AUTHOR
 
-sub unset
-{
-	my ($self) = @_;
+Mark D. Roth E<lt>roth@uiuc.eduE<gt>
 
-	$self->{'value'} = [];
-	return 1;
-}
+=head1 SEE ALSO
 
+L<perl>
 
-sub set
-{
-	my ($self, $value) = @_;
+L<Config::Objective>
 
-#	print "==> List::set($value)\n";
-
-	$self->unset();
-	return $self->add($value);
-}
-
-
-sub add
-{
-	my ($self, $value) = @_;
-
-	$value = $self->_scalar_or_list($value);
-	$self->{'value'} = []
-		if (!defined($self->{'value'}));
-	push(@{$self->{'value'}}, @$value);
-
-	return 1;
-}
-
-
-sub add_top
-{
-	my ($self, $value) = @_;
-
-	$value = $self->_scalar_or_list($value);
-	$self->{'value'} = []
-		if (!defined($self->{'value'}));
-	unshift(@{$self->{'value'}}, @$value);
-
-	return 1;
-}
-
-
-sub delete
-{
-	my ($self, $value) = @_;
-	my ($val);
-
-	$value = $self->_scalar_or_list($value);
-	$self->{'value'} = []
-		if (!defined($self->{'value'}));
-	foreach $val (@$value)
-	{
-		$self->{'value'} = grep !/$val/, @{$self->{'value'}};
-	}
-
-	return 1;
-}
-
-
-1;
-
-
-###############################################################################
-###  table data type
-###############################################################################
-
-package Config::Objective::Table;
-
-use strict;
-
-our @ISA = qw(Config::Objective::List);
-
-
-sub add_before
-{
-	my ($self, $value) = @_;
-	my ($ct, $lref);
-
-	die "add_before: method requires list argument\n"
-		if (ref($value) ne 'ARRAY');
-
-	die "add_before: invalid argument(s)\n"
-		if (@{$value} != 3
-		    || ref($value->[2]) ne 'ARRAY');
-
-	for ($ct = 0; $ct < @{$self->{'value'}}; $ct++)
-	{
-		$lref = $self->{'value'}->[$ct];
-		if ($lref->[$value->[0]] =~ m/$value->[1]/)
-		{
-			splice(@{$self->{'value'}}, $ct, 0, $value->[2]);
-			return;
-		}
-	}
-}
-
-
-sub find
-{
-	my ($self, $value) = @_;
-	my ($row);
-
-	die "find: method requires list argument\n"
-		if (ref($value) ne 'ARRAY');
-
-	die "find: invalid argument(s)\n"
-		if (@{$value} != 2);
-
-	foreach $row (@{$self->{'value'}})
-	{
-		if ($row->[$value->[0]] =~ m/\b$value->[1]\b/)
-		{
-			return $row;
-		}
-	}
-
-	return undef;
-}
-
-
-sub replace
-{
-	my ($self, $value) = @_;
-	my ($row);
-
-	die "replace: method requires list argument\n"
-		if (ref($value) ne 'ARRAY');
-
-	die "replace: invalid argument(s)\n"
-		if (@{$value} != 4);
-
-	foreach $row (@{$self->{'value'}})
-	{
-		if ($row->[$value->[0]] =~ m/$value->[1]/)
-		{
-			$row->[$value->[2]] = $value->[3];
-			return;
-		}
-	}
-}
-
-
-sub modify
-{
-	my ($self, $value) = @_;
-	my ($row);
-
-	die "modify: method requires list argument\n"
-		if (ref($value) ne 'ARRAY');
-
-	die "modify: invalid argument(s)\n"
-		if (@{$value} != 4);
-
-	foreach $row (@{$self->{'value'}})
-	{
-		if ($row->[$value->[0]] =~ m/$value->[1]/)
-		{
-			$row->[$value->[2]] .= ' '
-				if ($row->[$value->[2]] ne '');
-			$row->[$value->[2]] .= $value->[3];
-			return;
-		}
-	}
-}
-
-
-1;
-
-
-###############################################################################
-###  hash data type
-###############################################################################
-
-package Config::Objective::Hash;
-
-use strict;
-
-our @ISA = qw(Config::Objective::DataType);
-
-
-sub new
-{
-	my ($class, %opts) = @_;
-
-	$opts{'default_method'} = 'insert'
-		if (!exists($opts{'default_method'}));
-
-	return Config::Objective::DataType::new($class, %opts);
-}
-
-
-sub unset
-{
-	my ($self) = @_;
-
-	$self->{'value'} = {};
-	return 1;
-}
-
-
-sub set
-{
-	my ($self, $value) = @_;
-
-#	print "==> Hash::set($value)\n";
-
-	$self->unset();
-	return $self->insert($value);
-}
-
-
-sub insert
-{
-	my ($self, $value) = @_;
-	my ($key1, $key2);
-
-#	print "==> Hash::insert($value)\n";
-
-	die "insert: method requires hash argument\n"
-		if (ref($value) ne 'HASH');
-
-	$self->{'value'} = {}
-		if (!defined($self->{'value'}));
-
-	foreach $key1 (keys %$value)
-	{
-		print "\t'$key1' => '$value->{$key1}'\n"
-			if ($self->{'debug'});
-
-		die "hash value missing\n"
-			if (!$self->{'value_optional'}
-			    && !defined($value->{$key1}));
-
-		die "hash value is not a $self->{'value_type'}\n"
-			if ($self->{'value_type'} ne ref($value->{$key1}));
-
-		die "value must be an absolute path\n"
-			if ($self->{'value_abspath'}
-			    && $value->{$key1} !~ m|^/|);
-
-		die "key must be an absolute path\n"
-			if ($self->{'key_abspath'}
-			    && $key1 !~ m|^/|);
-
-		if (exists($self->{'value'}->{$key1}))
-		{
-#			print "key1='$key1'\n";
-			if ($self->{'value_type'} eq 'HASH')
-			{
-#				print "key1={" . join(',', sort keys %{$self->{'value'}->{$key1}}) . "}\n";
-				foreach $key2 (keys %{$value->{$key1}})
-				{
-#					print "\tkey2='$key2'\n";
-					$self->{'value'}->{$key1}->{$key2} = $value->{$key1}->{$key2};
-				}
-
-#				print "'$key1' => { " . join(', ', sort keys %{$self->{'value'}->{$key1}}) . " }\n";
-				next;
-			}
-			elsif ($self->{'value_type'} eq 'ARRAY')
-			{
-				push(@{$self->{'value'}->{$key1}}, @{$value->{$key1}});
-				next;
-			}
-		}
-
-		### overwrite the existing entry
-		### or create a new one
-		print "OVERRIDE: $value->{$key1}\n"
-			if ($self->{'debug'});
-		$self->{'value'}->{$key1} = $value->{$key1};
-	}
-
-	return 1;
-}
-
-
-sub delete
-{
-	my ($self, $value) = @_;
-	my ($val);
-
-	$value = $self->_scalar_or_list($value);
-	foreach $val (@$value)
-	{
-		delete $self->{'value'}->{$val};
-	}
-
-	return 1;
-}
-
-
-1;
-
+=cut
 
