@@ -25,7 +25,7 @@ use Config::Objective::DataType;
 use Config::Objective::Parser;
 
 
-our $VERSION = '0.9';
+our $VERSION = '0.9.1';
 our $AUTOLOAD;
 
 
