@@ -1,0 +1,286 @@
+
+###
+###  Copyright 2002-2003 University of Illinois Board of Trustees
+###  Copyright 2002-2003 Mark D. Roth
+###  All rights reserved. 
+###
+###  grammar.yp - Parse::Yapp grammar for Config::Objective
+###
+###  Mark D. Roth <roth@uiuc.edu>
+###  Campus Information Technologies and Educational Services
+###  University of Illinois at Urbana-Champaign
+###
+
+
+###
+### Header section
+###
+
+
+%left AND OR
+
+
+%%
+
+###
+### Rules section
+###
+
+config	: #empty
+	| config directive 
+	;
+
+directive
+	: statement
+	| conditional
+	| include
+	;
+
+include	: INCLUDE string
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		return undef
+			if (@{$config->{'cond_stack'}}
+			    && $config->{'cond_stack'}->[-1] != 1);
+
+		$_[2] = $config->{'include_dir'} . '/' . $_[2]
+			if ($_[2] !~ m|^/|);
+
+		$config->parse($_[2]);
+	}
+	;
+
+conditional
+	: cond_if config cond_endif
+	| cond_elif
+	| cond_else
+	;
+
+expression
+	: expr
+	| expression OR expression
+	{
+		return ($_[1] || $_[3]);
+	}
+	| expression AND expression
+	{
+		return ($_[1] && $_[3]);
+	}
+	| EXPR_START expression EXPR_END
+	{
+		return $_[2];
+	}
+	;
+
+expr
+	: WORD value
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+		return $config->_call_obj_method($_[1], 'equals', $_[2]);
+	}
+	| WORD METHOD_ARROW WORD value
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+		return $config->_call_obj_method($_[1], $_[3], $_[4]);
+	}
+	;
+
+cond_if	: IF expression
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		push(@{$config->{'cond_stack'}}, $_[2] ? 1 : 0);
+	}
+	;
+
+cond_endif
+	: ENDIF
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		die "%endif: not in conditional\n"
+			if (! @{$config->{'cond_stack'}});
+
+		pop(@{$config->{'cond_stack'}});
+	}
+	;
+
+cond_elif
+	: ELIF expression
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		die "%elif: not in conditional\n"
+			if (! @{$config->{'cond_stack'}});
+
+		if ($config->{'cond_stack'}->[-1] == 0)
+		{
+			$config->{'cond_stack'}->[-1] = ($_[2] ? 1 : 0);
+		}
+		elsif ($config->{'cond_stack'}->[-1] == 1)
+		{
+			$config->{'cond_stack'}->[-1] = -1;
+		}
+
+		### if it's -1, leave it alone
+	}
+	;
+
+cond_else
+	: ELSE
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		die '%else: not in conditional'
+			if (! @{$config->{'cond_stack'}});
+
+		if ($config->{'cond_stack'}->[-1] == 0)
+		{
+			$config->{'cond_stack'}->[-1] = 1;
+		}
+		elsif ($config->{'cond_stack'}->[-1] == 1)
+		{
+			$config->{'cond_stack'}->[-1] = -1;
+		}
+
+		### if it's -1, leave it alone
+	}
+	;
+
+string	: WORD
+	| QSTRING
+	;
+
+value	: string
+	| list
+	| hash
+	;
+
+statement
+	: WORD EOS
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		return undef
+			if (@{$config->{'cond_stack'}}
+			    && $config->{'cond_stack'}->[-1] != 1);
+
+		$config->_call_obj_method($_[1], undef, undef);
+	}
+	| WORD value EOS
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+#		print "var='$_[1]' value='$_[2]'\n";
+
+		return undef
+			if (@{$config->{'cond_stack'}}
+			    && $config->{'cond_stack'}->[-1] != 1);
+
+		$config->_call_obj_method($_[1], undef, $_[2]);
+	}
+	| WORD METHOD_ARROW WORD EOS
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		return undef
+			if (@{$config->{'cond_stack'}}
+			    && $config->{'cond_stack'}->[-1] != 1);
+
+		$config->_call_obj_method($_[1], $_[3], undef);
+	}
+	| WORD METHOD_ARROW WORD value EOS
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+#		print "var='$_[1]' method='$_[3]' value='$_[4]'\n";
+
+		return undef
+			if (@{$config->{'cond_stack'}}
+			    && $config->{'cond_stack'}->[-1] != 1);
+
+		$config->_call_obj_method($_[1], $_[3], $_[4]);
+	}
+	;
+
+list	: LIST_START LIST_END
+	{
+		return [];
+	}
+	| LIST_START
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		push(@{$config->{'list_stack'}}, []);
+	}
+	list_values LIST_END
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		return pop(@{$config->{'list_stack'}});
+	}
+	;
+
+list_values
+	: value COMMA list_values
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		unshift(@{$config->{'list_stack'}->[-1]}, $_[1]);
+	}
+	| value
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		unshift(@{$config->{'list_stack'}->[-1]}, $_[1]);
+	}
+	;
+
+hash	: HASH_START HASH_END
+	{
+		return {};
+	}
+	| HASH_START
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		push(@{$config->{'hash_stack'}}, {});
+	}
+	hash_values HASH_END
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+		return pop(@{$config->{'hash_stack'}});
+	}
+	;
+
+hash_values
+	: hash_values COMMA hash_value
+	| hash_value
+	;
+
+hash_value
+	: string
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+#		print "\t'$_[1]' => undef\n";
+		$config->{'hash_stack'}->[-1]->{$_[1]} = undef;
+	}
+	| string HASH_ARROW value
+	{
+		my ($config) = $_[0]->YYData->{'config'};
+
+#		print "\t'$_[1]' => '$_[3]'\n";
+		$config->{'hash_stack'}->[-1]->{$_[1]} = $_[3];
+	}
+	;
+
+%%
+
+###
+### Footer section
+###
+
+

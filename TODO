@@ -1,0 +1,12 @@
+- allow multiple arguments to a given method ???
+  (other than passing it a list reference...)
+
+- Config::Objective::DataType problems:
+  - replace 'value_optional' and 'value_type' options with a reference
+    to a subroutine to perform input validation?
+
+- architecture:
+  - make data types work recursively
+  - allow usage of methods to access nested data.  Example:
+      hash->find('key')->list_delete('foo');
+

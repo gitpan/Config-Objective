@@ -1,0 +1,27 @@
+Config::Objective
+=================
+
+Config::Objective is a module that parses config files of complex
+nested data structures and makes them available in perl.  See the
+Config::Objective man page for more information.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+  Parse::Lex	(2.15)
+  Parse::Yapp	(1.05)
+
+COPYRIGHT AND LICENCE
+
+See the enclosed COPYRIGHT file.
+
