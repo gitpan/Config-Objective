@@ -122,8 +122,8 @@ represents a string value in an object so that it can be used with
 B<Config::Objective>.  Its methods can be used to manipulate the
 encapsulated string value from the config file.
 
-The B<Config::Objective::Boolean> class is derived from the
-B<<Config::Objective::DataType> class, but it defines/overrides the
+The B<Config::Objective::String> class is derived from the
+B<Config::Objective::DataType> class, but it defines/overrides the
 following methods:
 
 =over 4

@@ -29,7 +29,8 @@ sub new
 	$self = \%opts;
 	bless($self, $class);
 
-	$self->unset();
+	$self->unset()
+		if (!exists($self->{'value'}));
 
 	return $self;
 }
@@ -150,8 +151,13 @@ support the following methods for use in subclasses:
 The constructor.  It can be passed a hash to set the object's
 attributes.  The object will be created as a reference to this hash.
 
-The B<Config::Objective::DataType> class itself does not use the
-attributes in any way.  However, they can be useful in subclasses.
+The value encapsulated by the object is stored in the "value" attribute.
+Setting this attribute in the constructor call will set the initial
+value for the object.  If no initial value is supplied, the constructor
+will call the undef() method.
+
+The B<Config::Objective::DataType> class does not use any other
+attributes.  However, they can be useful in subclasses.
 
 =item set()
 

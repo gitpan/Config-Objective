@@ -1,3 +1,14 @@
+Config::Objective 0.7 - 3/4/03
+---------------------
+
+- fixed documentation typos
+- fixed Config::Objective::DataType->new() to accept a default value for
+  the object
+- allow backslash-escaped quotes inside of quoted strings
+- improved error reporting
+
+-------------------------------------------------------------------------------
+
 Config::Objective 0.6 - 1/30/03
 ---------------------
 

@@ -183,7 +183,7 @@ B<Config::Objective>.  Its methods can be used to manipulate the
 encapsulated hash from the config file.
 
 The B<Config::Objective::Hash> class is derived from the
-B<<Config::Objective::DataType> class, but it defines/overrides the
+B<Config::Objective::DataType> class, but it defines/overrides the
 following methods:
 
 =over 4

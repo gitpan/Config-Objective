@@ -126,7 +126,7 @@ __END__
 
 =head1 NAME
 
-Config::Objective::List - boolean data type class for Config::Objective
+Config::Objective::List - list data type class for Config::Objective
 
 =head1 SYNOPSIS
 
@@ -145,7 +145,7 @@ B<Config::Objective>.  Its methods can be used to manipulate the
 encapsulated list from the config file.
 
 The B<Config::Objective::List> class is derived from the
-B<<Config::Objective::DataType> class, but it defines/overrides the
+B<Config::Objective::DataType> class, but it defines/overrides the
 following methods:
 
 =over 4

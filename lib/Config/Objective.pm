@@ -25,7 +25,7 @@ use Config::Objective::DataType;
 use Config::Objective::Parser;
 
 
-our $VERSION = '0.6';
+our $VERSION = '0.7';
 our $AUTOLOAD;
 
 
@@ -159,7 +159,7 @@ sub parse
 	$lexer = Parse::Lex->new(
 		'AND',		'&&',
 		'COMMA',	',',
-		'COMMENT',	'(?<!\\$)#.*$',
+		'COMMENT',	'(?<!\\\\)#.*$',
 		'ELIF',		'^\%[ \t]*elif',
 		'ELSE',		'^\%[ \t]*else',
 		'ENDIF',	'^\%[ \t]*endif',
@@ -177,20 +177,27 @@ sub parse
 		'NOT',		'!',
 		'OR',		'\|\|',
 		'WORD',		'\w+',
-		'QSTRING',	[ '"', '[^"]*', '"' ],
+		'QSTRING',	[
+				  '(?<!\\\\)"',
+				  '([^"]|(?<=\\\\)")*',
+				  '(?<!\\\\)"'
+				],
 				sub {
 					my ($token, $string) = @_;
 
-					$string =~ s/^\"//;
-					$string =~ s/\"$//;
+					$string =~ s/^"//;
+					$string =~ s/"$//;
+
+					$string =~ s/\\"/"/g;
 
 					return $string;
 				},
 		'ERROR',	'(?s:.*)',
 				sub {
 					my $line = $_[0]->lexer->line;
+					my $file = $self->{'file_stack'}->[-1];
 
-					die "line $line: syntax error: \"$_[1]\"\n";
+					die "$file:$line: syntax error: \"$_[1]\"\n";
 				}
 	);
 	$lexer->from(\*$fh);
@@ -378,6 +385,7 @@ list or hash structure.  For example:
 
   all_word_characters
   "use quotes for non-word characters"
+  "quotes can be escaped like this \" inside quoted strings"
   [ this, is, a, list ]
   { this => 1, is => 2, a => 3, hash => 4 }
   { hash, values => are, optional }

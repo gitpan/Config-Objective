@@ -1,3 +1,5 @@
+- replace include_dir with include_path (multiple directories) ???
+
 - have $conf->objname return object reference instead of calling get() method?
 
 - split up test.conf info multiple, smaller config files
